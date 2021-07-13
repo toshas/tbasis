@@ -1,0 +1,26 @@
+experiment: imgcls
+experiment_name: __FILENAMEBASE__
+log_dir: __FILENAMEBASE__
+dataset: cifar10
+num_epochs_train_total: 1000
+batch_size: 128
+batch_size_validation: 256
+
+model_name: resnet_cifar10
+model_name_specific: resnet32
+model_name_specific_kwargs: {}
+
+compressed: False
+
+optimizer_model_name: sgd
+optimizer_model_kwargs:
+    lr: 0.1
+    momentum: 0.9
+    weight_decay: 0.0001
+
+lr_scheduler_milestones:
+    - 0.5
+    - 0.75
+lr_scheduler_gamma: 0.1
+lr_warmup_sts: True
+lr_warmup_steps: 2000

@@ -1,0 +1,184 @@
+#!/bin/bash -l
+set -e
+#set -x
+
+help() {
+    echo "  $0 [wrapper_args] -- <script_path> [script_args]"
+    echo
+    echo "Wrapper around IBM 'bsub' command. Command line options:"
+    echo "  [-j|--jobname]   : job name, else script name will be used"
+    echo "  [-l|--logroot]   : a dir where log for this job will be written as job_JOBNAME.log"
+    echo "  [-q|--queue]=1   : id of queue, 0 (2h), 1 (24h), 2 (120h)"
+    echo "  [-c|--numcpus]=1 : number of CPU nodes to request"
+    echo "  [-n|--numgpus]=1 : number of GPUs to request"
+    echo "  [-m|--mem]=16G   : mem per CPU node"
+    echo "  [-r|--restarts]  : how many times to resume this experiment in the same queue"
+    echo "  [-s|--spec]      : gpu spec"
+    echo "  [-a|--after]     : wait for this job name to finish"
+}
+
+JOBNAME=""
+LOGROOT=""
+SCRIPTPATH=""
+SCRIPTARGS=""
+GPUQUEUEID=1
+NCPUS=1
+NGPUS=1
+VMEM=16G
+DAYS=1
+GPUSPEC=""
+AFTER=""
+
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case ${key} in
+    -j|--jobname)
+        JOBNAME="$2"
+        shift 2
+        ;;
+    -l|--logroot)
+        LOGROOT="$2"
+        shift 2
+        ;;
+    -q|--queue)
+        GPUQUEUEID="$2"
+        shift 2
+        ;;
+    -c|--numcpus)
+        NCPUS="$2"
+        shift 2
+        ;;
+    -n|--numgpus)
+        NGPUS="$2"
+        shift 2
+        ;;
+    -m|--mem)
+        VMEM="$2"
+        shift 2
+        ;;
+    -r|--restarts)
+        RESTARTS="$2"
+        shift 2
+        ;;
+    -s|--spec)
+        GPUSPEC="$2"
+        shift 2
+        ;;
+    -a|--after)
+        AFTER="$2"
+        shift 2
+        ;;
+    -h|--help)
+        help
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+    *) # unknown option
+        echo "Ignoring unknown wrapper argument: \"$1\""
+        shift
+        ;;
+    esac
+done
+
+if [ "$#" -lt "1" ]; then
+    echo "Script path is not specified, refer to -h for help with syntax"
+    exit 255
+fi
+
+if [ -z "${JOBNAME}" ]; then
+    echo "Meaningful job name is required"
+    exit 255
+fi
+
+if [ -z "${LOGROOT}" ]; then
+    echo "Meaningful log root is required"
+    exit 255
+fi
+
+if [[ ! "${VMEM}" =~ ^[0-9]+G$ ]]; then
+    echo "CPU memory per node must be specified in gigabytes, e.g. '12G'"
+    exit 255
+fi
+VMEM=${VMEM%G}
+
+mkdir -p ${LOGROOT}
+JOB_LOG=${LOGROOT}/job_${JOBNAME}.log
+echo "System log path: ${JOB_LOG}"
+
+SCRIPTPATH="$1"
+shift
+SCRIPTARGS="$@"
+
+GPUQUEUE=""
+case ${GPUQUEUEID} in
+0)
+    GPUQUEUE="-W 2:00"
+    ;;
+1)
+    GPUQUEUE="-W 24:00"
+    ;;
+2)
+    GPUQUEUE="-W 120:00"
+    ;;
+*) # unknown option
+    echo "Invalid -q|--queue enum, can be one of 0,1,2,3"
+    exit 255
+    ;;
+esac
+
+module load eth_proxy
+
+echo "Preparing job '${JOBNAME}' to run on '${NCPUS}' CPU nodes each with '${VMEM}' RAM and '${NGPUS}' GPUs for '${RESTARTS}' restarts"
+
+CMD="bsub"
+CMD="${CMD} ${GPUQUEUE}"
+CMD="${CMD} -n ${NCPUS}"
+if [ ! -z "${GPUSPEC}" ]; then
+    case ${GPUSPEC} in
+    gtx)
+        CMD="${CMD} -R select[gpu_model0==GeForceGTX1080Ti]"
+        ;;
+    rtx)
+        CMD="${CMD} -R select[gpu_model0==GeForceRTX2080Ti]"
+        ;;
+    titanrtx)
+        CMD="${CMD} -R select[gpu_model0==TITANRTX]"
+        ;;
+    volta)
+        CMD="${CMD} -R select[gpu_model0==TeslaV100_SXM2_32GB]"
+        ;;
+    ampere)
+        CMD="${CMD} -R select[gpu_model0==A100_PCIE_40GB]"
+        ;;
+    *) # unknown option
+        echo "Invalid -s|--spec"
+        exit 255
+        ;;
+    esac
+fi
+CMD="${CMD} -o ${JOB_LOG} -e ${JOB_LOG}"
+
+# mem is specified in MB in Leonhard environment
+CMD="${CMD} -R rusage[mem=$((${VMEM}*1024)),ngpus_excl_p=${NGPUS}]"
+
+PREV_JOBNAMEDAY="${AFTER}"
+for i in $(seq 1 ${RESTARTS}); do
+    CMD_WAIT=""
+    JOBNAMEDAY="${JOBNAME}_${i}"
+    if [ ! -z "${PREV_JOBNAMEDAY}" ]; then
+        CMD_WAIT="-w ended(${PREV_JOBNAMEDAY})"
+    fi
+    CMD_CUR="${CMD} -J ${JOBNAMEDAY} ${CMD_WAIT} ${SCRIPTPATH} ${SCRIPTARGS}"
+    #echo ${CMD_CUR}
+    OUT=$(${CMD_CUR})
+    JOBID=$(echo ${OUT} | cut -d'<' -f2 | cut -d'>' -f 1)
+    if [ -z "${CMD_WAIT}" ]; then
+        echo "${JOBNAMEDAY}: ${JOBID}"
+    else
+        echo "${JOBNAMEDAY}: ${JOBID} after ${PREV_JOBNAMEDAY}"
+    fi
+    PREV_JOBNAMEDAY=${JOBNAMEDAY}
+done

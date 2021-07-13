@@ -1,0 +1,46 @@
+experiment: semseg
+experiment_name: __FILENAMEBASE__
+log_dir: __FILENAMEBASE__
+dataset: voc_sbd
+num_training_steps: 360000
+num_validation_steps: 10000
+batch_size: 16
+batch_size_validation: 32
+
+model_name: deeplabv3p
+model_encoder_name: resnet34
+model_encoder_pretrained: False
+
+aug_input_crop_size: 384
+aug_geom_scale_min: 0.5
+aug_geom_scale_max: 2.0
+aug_geom_tilt_max_deg: 0
+aug_geom_wiggle_max_ratio: 0
+aug_geom_reflect: True
+aug_geom_validation_center_crop_sts: True
+aug_geom_validation_center_crop_size: 512
+
+compressed: False
+
+optimizer_model_name: sgd
+optimizer_model_kwargs:
+    lr: 0.007
+    momentum: 0.9
+    weight_decay: 0.0001
+
+lr_scheduler_power: 0.9
+lr_warmup_sts: True
+lr_warmup_steps: 2000
+
+visualize_num_samples_in_batch: 6
+observe_train_ids:
+    - 2100
+    - 699
+    - 5480
+observe_valid_ids:
+    - 0
+    - 100
+    - 734
+    - 718
+    - 389
+tensorboard_img_grid_width: 16

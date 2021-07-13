@@ -1,0 +1,15 @@
+root_datasets:
+  cifar10: /cluster/scratch/obukhova/torchvision
+  cifar100: /cluster/scratch/obukhova/torchvision
+  mnist: /cluster/scratch/obukhova/torchvision
+  voc_sbd: /cluster/scratch/obukhova/VOC_SBD
+root_logs: /cluster/scratch/obukhova/logs
+root_models: /cluster/scratch/obukhova/models
+root_wandb: /cluster/scratch/obukhova/logs_wandb
+dataset_download: True
+assert_env_set:
+    - CUDA_VISIBLE_DEVICES
+num_log_loss_steps: 10
+workers: 4
+workers_validation: 4
+wandb_project: tbasis

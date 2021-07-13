@@ -1,0 +1,57 @@
+#!/bin/bash -l
+set -e
+#set -x
+
+NUM_SAME_EXP_START=0
+NUM_SAME_EXP=3
+NUM_REPEATS=3
+
+LOG_ROOT=/cluster/scratch/obukhova/logs/
+
+PATH_TO_SCRIPT=$(realpath -s $0)
+PATH_TO_SCRIPT_DIR=$(dirname ${PATH_TO_SCRIPT})
+PATH_TO_CONFIGS=$(realpath -s "${PATH_TO_SCRIPT_DIR}/../../configs")
+
+runexp_once() {
+  TRAIN_SCRIPT_NAME=$1
+  GRP_NAME=$2
+  EXP_NAME=$3
+  RUN_ID=$4
+  JOB_NAME="${EXP_NAME}__${GRP_NAME}__run${RUN_ID}"
+  ${PATH_TO_SCRIPT_DIR}/lsf_sub_venv -j ${JOB_NAME} -l ${LOG_ROOT} -q 1 -c 4 -n 1 -m 4G -r ${NUM_REPEATS} -s rtx -- \
+    python -m src.${TRAIN_SCRIPT_NAME} \
+    --cfg ${PATH_TO_CONFIGS}/env_lsf.yml \
+    --cfg ${PATH_TO_CONFIGS}/icml20/${GRP_NAME}/${EXP_NAME}.yml \
+    --log_dir ${JOB_NAME} \
+    --experiment_name ${JOB_NAME} \
+    --random_seed ${RUN_ID}
+}
+
+runexp_many() {
+  TRAIN_SCRIPT_NAME=$1
+  GRP_NAME=$2
+  EXP_NAME=$3
+  NUM_SAME_EXP_LIMIT=$((NUM_SAME_EXP_START+NUM_SAME_EXP))
+  for ((RUN_ID=${NUM_SAME_EXP_START}; RUN_ID<${NUM_SAME_EXP_LIMIT}; RUN_ID++)); do
+    runexp_once ${TRAIN_SCRIPT_NAME} ${GRP_NAME} ${EXP_NAME} ${RUN_ID}
+  done
+}
+
+runexp_many train imgcls_resnet32_cifar10 imgcls_baseline
+runexp_many train imgcls_resnet32_cifar10 imgcls_b02_r02
+runexp_many train imgcls_resnet32_cifar10 imgcls_b02_r04
+runexp_many train imgcls_resnet32_cifar10 imgcls_b04_r02
+runexp_many train imgcls_resnet32_cifar10 imgcls_b04_r04
+runexp_many train imgcls_resnet32_cifar10 imgcls_b04_r08
+runexp_many train imgcls_resnet32_cifar10 imgcls_b08_r04
+runexp_many train imgcls_resnet32_cifar10 imgcls_b08_r08
+runexp_many train imgcls_resnet32_cifar10 imgcls_b08_r16
+runexp_many train imgcls_resnet32_cifar10 imgcls_b16_r08
+runexp_many train imgcls_resnet32_cifar10 imgcls_b16_r16
+runexp_many train imgcls_resnet32_cifar10 imgcls_b16_r32
+runexp_many train imgcls_resnet32_cifar10 imgcls_b32_r16
+runexp_many train imgcls_resnet32_cifar10 imgcls_b32_r32
+
+runexp_many train semseg_deeplabv3p_vocsbd semseg_baseline
+runexp_many train semseg_deeplabv3p_vocsbd semseg_b128_r16
+runexp_many train semseg_deeplabv3p_vocsbd semseg_b128_r32

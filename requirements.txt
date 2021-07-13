@@ -1,0 +1,10 @@
+matplotlib
+opt_einsum
+packaging
+pillow==8.2.0
+PyYAML
+scipy
+tensorboard
+torch>=1.9
+torchvision
+wandb

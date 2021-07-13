@@ -1,0 +1,5 @@
+#!/bin/bash -l
+set -e
+#set -x
+
+bjobs -o 'id: stat: queue: exec_host:16 submit_time:14 start_time:14 name:64'

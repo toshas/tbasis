@@ -1,0 +1,46 @@
+experiment: imgcls
+experiment_name: __FILENAMEBASE__
+log_dir: __FILENAMEBASE__
+dataset: cifar10
+num_epochs_train_total: 1000
+batch_size: 128
+batch_size_validation: 256
+
+model_name: resnet_cifar10
+model_name_specific: resnet32
+model_name_specific_kwargs: {}
+
+compressed: True
+contraction_method: opt_einsum
+rank_adaptation: exp
+permute_and_group_factors: True
+
+module_names_ignored:
+    model.conv1
+
+basis_size: 4
+basis_rank: 4
+basis_mode: 9
+basis_trainable_sts: True
+basis_init_seed: 2020
+basis_pretrained_path: Null
+
+decompressed_L2_regularizer_coef: 3e-4
+
+optimizer_model_name: sgd
+optimizer_model_kwargs:
+    lr: 0.1
+    momentum: 0.9
+    weight_decay: 0.0001
+
+optimizer_basis_name: adam
+optimizer_basis_kwargs:
+    lr: 0.01
+    betas: [0.95, 0.9995]
+
+lr_scheduler_milestones:
+    - 0.5
+    - 0.75
+lr_scheduler_gamma: 0.1
+lr_warmup_sts: True
+lr_warmup_steps: 2000
